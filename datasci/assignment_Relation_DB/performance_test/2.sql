@@ -1,0 +1,1 @@
+select * from (select x.docid as a ,y.docid as b,sum(x.count*y.count)as count from Frequency x, Frequency y where x.term = y.term and x.docid < y.docid group by x.docid, y.docid  ORDER BY  count  ASC)x where x.a="10080_txt_crude" and x.b="17035_txt_earn";
