@@ -18,15 +18,15 @@ import org.apache.hadoop.util.*;
 
 public class WordLength {
 	
-	private static void GenerateInput(String localFilePath, Path toHDFSDir, int contRepeat, int numOfFiles){
-		FileChannel inChannle  = FileChannel.open(FileSystems.getDefault().getPath(local_from));
+	private static void GenerateInput(String localFilePath, Path toHDFSDir, int contRepeat, int numOfFiles) throws IOException{
+		FileChannel inChannle  = FileChannel.open(FileSystems.getDefault().getPath(localFilePath));
 		FileSystem fs = FileSystem.get(toHDFSDir.toUri(), new JobConf(WordLength.class));
 		ByteBuffer buf =  ByteBuffer.allocate(1*1024*1024);
 		FSDataOutputStream outStream = null;
 
 		try {
 			while(numOfFiles-- > 0){
-				outStream = fs.create(toHDFSDir);
+				outStream = fs.create(new Path(toHDFSDir, Integer.toString(numOfFiles)));
 				while(contRepeat-- > 0){
 					inChannle.position(0);
 					while(inChannle.read(buf) > 0){
@@ -41,17 +41,17 @@ public class WordLength {
 			throw e;
 		} finally {
 			inChannle.close();
-			fs.close();
+			//fs.close(); it's get a glocal instance do not close it!
 			if(outStream != null) outStream.close();
 		}
 	}
 	
-	private static void TestMapReduce(String input, String output){
+	private static void RunMapReduce(Path input, Path output) throws IOException{
 		JobConf conf = new JobConf(WordLength.class);
 		conf.setJobName("wordlength");
 
 		conf.setOutputKeyClass(Text.class);
-		conf.setOutputValueClass(Text.class);
+		conf.setOutputValueClass(IntWritable.class);
 
 		conf.setMapperClass(WordLengthMap.class);
 		conf.setReducerClass(WordLengthReduce.class);
@@ -59,36 +59,11 @@ public class WordLength {
 		conf.setInputFormat(TextInputFormat.class);
 		conf.setOutputFormat(TextOutputFormat.class);
 
-		FileInputFormat.setInputPaths(conf, new Path(input));
-		FileOutputFormat.setOutputPath(conf, new Path(output));
+		FileInputFormat.setInputPaths(conf, input);
+		FileOutputFormat.setOutputPath(conf, output);
 		
-		Path outpath = new Path(output);
-		System.out.println("try to delete output path if it exist " + outpath.toUri());
-		FileSystem fs = FileSystem.get(outpath.toUri(), conf);
-		fs.delete(outpath, true);//Now, no exception even the path not exist
-
 		RunningJob rj =  JobClient.runJob(conf);
-		
-
 		rj.waitForCompletion();
-	
-		
-		RemoteIterator<LocatedFileStatus> outputs  =  fs.listFiles(outpath, true);
-		while(outputs.hasNext()){
-			LocatedFileStatus fstatus = outputs.next();
-			if(fstatus.isFile()){
-				System.out.println(fstatus.getPath());
-				FSDataInputStream  fin = fs.open(fstatus.getPath());
-				ByteBuffer buf = ByteBuffer.allocate(1*1024*1024);//1M buffer
-				while( fin.read(buf) > 0){
-					buf.flip();
-					String str = Charset.forName("UTF-8").newDecoder().decode(buf).toString();
-					System.out.print(str);
-					buf.clear();
-				}
-				fin.close();
-			}
-		}
 	}
 	
 	
@@ -97,17 +72,36 @@ public class WordLength {
 	    	
 	    	Path inputPath =  new Path("hdfs://localhost:54310/input");
 	    	Path outputPath = new Path("hdfs://localhost:54310/output");
-	    	String localFile = "/home/hduser/workspace/coursera/datasci/mapreduce/WordLength/src/DocumentCreater.java";
+	    	String localFile = "/home/hduser/workspace/coursera/datasci/mapreduce/WordLength/src/document.txt";
 	    				
 	        //1. rebuild input,output
 	    	FileSystem fs = FileSystem.get(inputPath.toUri(), new JobConf(WordLength.class));
 	    	fs.delete(inputPath, true);
 	    	fs.delete(outputPath, true);
-	    	fs.mkdirs(inputPath);
-	    	fs.mkdirs(outputPath);	    	
+	    	fs.mkdirs(inputPath);    	
 	    	GenerateInput(localFile, inputPath, 1,1);
 	    	
-	    	TestMapReduce();
+	    	//2. run task
+	    	RunMapReduce(inputPath, outputPath);
+	    	
+	    	RemoteIterator<LocatedFileStatus> outputs  =  fs.listFiles(outputPath, true);
+			while(outputs.hasNext()){
+				LocatedFileStatus fstatus = outputs.next();
+				if(fstatus.isFile()){
+					System.out.println(fstatus.getPath());
+					FSDataInputStream  fin = fs.open(fstatus.getPath());
+					ByteBuffer buf = ByteBuffer.allocate(1*1024*1024);//1M buffer
+					while( fin.read(buf) > 0){
+						buf.flip();
+						String str = Charset.forName("UTF-8").newDecoder().decode(buf).toString();
+						System.out.print(str);
+						buf.clear();
+					}
+					fin.close();
+				}
+			}
+	    	
+	    	
 	    } catch(Exception e){
 	    	System.out.println(e.getMessage());
 	    	e.printStackTrace();

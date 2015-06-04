@@ -7,17 +7,19 @@ import org.apache.hadoop.mapred.*;
 
 
 public class WordLengthReduce extends MapReduceBase implements
-			Reducer<Text, Text, Text, Text> {
-		public void reduce(Text key, Iterator<Text> values,
-				OutputCollector<Text, Text> output, Reporter reporter)
+			Reducer<Text, IntWritable, Text, IntWritable> {
+		public void reduce(Text key, Iterator<IntWritable> values,
+				OutputCollector<Text, IntWritable> output, Reporter reporter)
 				throws IOException {
-			StringBuilder strBuilder = new StringBuilder();
+			int sum = 0;
+			//StringBuilder strBuilder = new StringBuilder();
 			while (values.hasNext()) {
-				strBuilder.append(values.next().toString() + "+");
+				//strBuilder.append(values.next().toString() + "+");
+				sum += values.next().get();
 			}
-			Text outText = new Text();
-			outText.set(strBuilder.toString());
+			//Text outText = new Text();
+			//outText.set(strBuilder.toString());
 			
-			output.collect(key, outText);
+			output.collect(key, new IntWritable(sum));
 		}
 	}

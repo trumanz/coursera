@@ -6,13 +6,13 @@ import org.apache.hadoop.mapred.*;
 
 
 public  class WordLengthMap extends MapReduceBase implements
-		Mapper<LongWritable, Text, Text, Text> {
+		Mapper<LongWritable, Text, Text, IntWritable> {
 	private final static IntWritable one = new IntWritable(1);
 	private Text wordType = new Text();
 	private Text word = new Text();
 
 	public void map(LongWritable key, Text value,
-			OutputCollector<Text, Text> output, Reporter reporter)
+			OutputCollector<Text, IntWritable> output, Reporter reporter)
 			throws IOException {
 		String line = value.toString();
 		StringTokenizer tokenizer = new StringTokenizer(line);
@@ -20,9 +20,6 @@ public  class WordLengthMap extends MapReduceBase implements
 		while (tokenizer.hasMoreTokens()) {
 			String token = tokenizer.nextToken();
 			int len = token.length();
-			if (!Character.isLetter(token.charAt(token.length() - 1))) {
-				len--;
-			}
 			if (len >= 10) {
 				wordType.set("Big");
 			} else if (len >= 5) {
@@ -33,7 +30,7 @@ public  class WordLengthMap extends MapReduceBase implements
 				wordType.set("Tiny");
 			}
 			word.set(token);
-			output.collect(wordType, word);
+			output.collect(wordType, one);
 		}
 	}
 }
