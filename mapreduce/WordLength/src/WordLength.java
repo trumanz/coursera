@@ -23,19 +23,25 @@ public class WordLength {
 		FileSystem fs = FileSystem.get(toHDFSDir.toUri(), new JobConf(WordLength.class));
 		ByteBuffer buf =  ByteBuffer.allocate(1*1024*1024);
 		FSDataOutputStream outStream = null;
-
+	
+		System.out.println("create contRepeat=" + contRepeat +", numOfFiles="+numOfFiles);
 		try {
 			while(numOfFiles-- > 0){
-				outStream = fs.create(new Path(toHDFSDir, Integer.toString(numOfFiles)));
-				while(contRepeat-- > 0){
+				System.out.println("file " + numOfFiles);
+				Path outPath = new Path(toHDFSDir, Integer.toString(numOfFiles));
+				System.out.println("file " + outPath.toString());
+				outStream = fs.create(outPath);
+				int repeat = contRepeat;
+				while(repeat-- > 0){
 					inChannle.position(0);
 					while(inChannle.read(buf) > 0){
 						buf.flip();
-						outStream.write(buf.array());
+						outStream.writeBytes(Charset.forName("UTF-8").newDecoder().decode(buf).toString());
 						buf.clear();
 					}
 				}
 				outStream.close();
+				outStream= null;
 			}
 		} catch (IOException e){
 			throw e;
@@ -63,7 +69,12 @@ public class WordLength {
 		FileOutputFormat.setOutputPath(conf, output);
 		
 		RunningJob rj =  JobClient.runJob(conf);
+		
+		//System.out.println("TranckingURL "  + rj.getTrackingURL());
+		
 		rj.waitForCompletion();
+		
+		
 	}
 	
 	
@@ -79,10 +90,13 @@ public class WordLength {
 	    	fs.delete(inputPath, true);
 	    	fs.delete(outputPath, true);
 	    	fs.mkdirs(inputPath);    	
-	    	GenerateInput(localFile, inputPath, 1,1);
-	    	
+	    	GenerateInput(localFile, inputPath, 200,3);
+	    	System.exit(1);
 	    	//2. run task
+	    	long start_ms = System.currentTimeMillis();
 	    	RunMapReduce(inputPath, outputPath);
+	    	start_ms = System.currentTimeMillis() - start_ms;
+	    	System.out.println("use time " + start_ms);
 	    	
 	    	RemoteIterator<LocatedFileStatus> outputs  =  fs.listFiles(outputPath, true);
 			while(outputs.hasNext()){
@@ -106,8 +120,6 @@ public class WordLength {
 	    	System.out.println(e.getMessage());
 	    	e.printStackTrace();
 	    }
-		
-		
 		
 		
 		
