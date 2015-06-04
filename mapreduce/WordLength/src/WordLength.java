@@ -72,7 +72,7 @@ public class WordLength {
 	    	
 	    	Path inputPath =  new Path("hdfs://localhost:54310/input");
 	    	Path outputPath = new Path("hdfs://localhost:54310/output");
-	    	String localFile = "/home/hduser/workspace/coursera/datasci/mapreduce/WordLength/src/document.txt";
+	    	String localFile = "/home/hduser/workspace/coursera-datasci/mapreduce/WordLength/data/document.txt";
 	    				
 	        //1. rebuild input,output
 	    	FileSystem fs = FileSystem.get(inputPath.toUri(), new JobConf(WordLength.class));
