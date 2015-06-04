@@ -27,12 +27,13 @@ public class WordLength {
 		System.out.println("create contRepeat=" + contRepeat +", numOfFiles="+numOfFiles);
 		try {
 			while(numOfFiles-- > 0){
-				System.out.println("file " + numOfFiles);
+				//System.out.println("file " + numOfFiles);
 				Path outPath = new Path(toHDFSDir, Integer.toString(numOfFiles));
-				System.out.println("file " + outPath.toString());
+				//System.out.println("file " + outPath.toString());
 				outStream = fs.create(outPath);
 				int repeat = contRepeat;
 				while(repeat-- > 0){
+					//System.out.println("repeat " + repeat);
 					inChannle.position(0);
 					while(inChannle.read(buf) > 0){
 						buf.flip();
@@ -90,8 +91,8 @@ public class WordLength {
 	    	fs.delete(inputPath, true);
 	    	fs.delete(outputPath, true);
 	    	fs.mkdirs(inputPath);    	
-	    	GenerateInput(localFile, inputPath, 200,3);
-	    	System.exit(1);
+	    	GenerateInput(localFile, inputPath, 1024*10,1);
+	    	
 	    	//2. run task
 	    	long start_ms = System.currentTimeMillis();
 	    	RunMapReduce(inputPath, outputPath);
@@ -114,7 +115,7 @@ public class WordLength {
 					fin.close();
 				}
 			}
-	    	
+	   
 	    	
 	    } catch(Exception e){
 	    	System.out.println(e.getMessage());
