@@ -7,26 +7,29 @@ import java.util.*;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.conf.*;
 import org.apache.hadoop.io.*;
-import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.*;
 
 public class WordLength {
 	
 	private static void GenerateInput(String localFilePath, Path toHDFSDir, int contRepeat, int numOfFiles) throws IOException{
 		FileChannel inChannle  = FileChannel.open(FileSystems.getDefault().getPath(localFilePath));
-		FileSystem fs = FileSystem.get(toHDFSDir.toUri(), new JobConf(WordLength.class));
+		FileSystem fs = FileSystem.get(toHDFSDir.toUri(), new Configuration());
 		ByteBuffer buf =  ByteBuffer.allocate(1*1024*1024);
 		FSDataOutputStream outStream = null;
 	
 		System.out.println("create contRepeat=" + contRepeat +", numOfFiles="+numOfFiles);
 		try {
-			while(numOfFiles-- > 0){
+			//while(numOfFiles-- > 0){
 				//System.out.println("file " + numOfFiles);
 				Path outPath = new Path(toHDFSDir, Integer.toString(numOfFiles));
 				//System.out.println("file " + outPath.toString());
@@ -43,7 +46,10 @@ public class WordLength {
 				}
 				outStream.close();
 				outStream= null;
-			}
+			//}
+		    while(--numOfFiles > 0){
+		    	FileUtil.copy(fs, outPath, fs, new Path(toHDFSDir, Integer.toString(numOfFiles)), false, true, new Configuration());
+		    }
 		} catch (IOException e){
 			throw e;
 		} finally {
@@ -53,27 +59,27 @@ public class WordLength {
 		}
 	}
 	
-	private static void RunMapReduce(Path input, Path output) throws IOException{
-		JobConf conf = new JobConf(WordLength.class);
-		conf.setJobName("wordlength");
-
-		conf.setOutputKeyClass(Text.class);
-		conf.setOutputValueClass(IntWritable.class);
-
-		conf.setMapperClass(WordLengthMap.class);
-		conf.setReducerClass(WordLengthReduce.class);
-
-		conf.setInputFormat(TextInputFormat.class);
-		conf.setOutputFormat(TextOutputFormat.class);
-
-		FileInputFormat.setInputPaths(conf, input);
-		FileOutputFormat.setOutputPath(conf, output);
+	private static void RunMapReduce(Path input, Path output) throws IOException, ClassNotFoundException, InterruptedException{
 		
-		RunningJob rj =  JobClient.runJob(conf);
 		
-		//System.out.println("TranckingURL "  + rj.getTrackingURL());
+		Configuration conf = new Configuration();
 		
-		rj.waitForCompletion();
+	    Job job = Job.getInstance(conf, "wordLength");
+	    job.setJarByClass(WordLength.class);
+	    
+	    job.setMapperClass(WordLengthMap.class);
+	    job.setCombinerClass(WordLengthReduce.class);
+	    
+	    job.setReducerClass(WordLengthReduce.class);
+	    job.setOutputKeyClass(Text.class);
+	    job.setOutputValueClass(IntWritable.class);
+	    
+	 
+	    FileInputFormat.addInputPath(job, input);
+	    FileOutputFormat.setOutputPath(job, output);
+	
+	    
+	    job.waitForCompletion(true);
 		
 		
 	}
@@ -87,18 +93,18 @@ public class WordLength {
 	    	String localFile = "/home/hduser/workspace/coursera-datasci/mapreduce/WordLength/data/document.txt";
 	    				
 	        //1. rebuild input,output
-	    	FileSystem fs = FileSystem.get(inputPath.toUri(), new JobConf(WordLength.class));
+	    	FileSystem fs = FileSystem.get(inputPath.toUri(), new Configuration());
 	    	fs.delete(inputPath, true);
 	    	fs.delete(outputPath, true);
 	    	fs.mkdirs(inputPath);    	
-	    	GenerateInput(localFile, inputPath, 1024*10,1);
+	    	GenerateInput(localFile, inputPath, 1,1);
 	    	
 	    	//2. run task
 	    	long start_ms = System.currentTimeMillis();
 	    	RunMapReduce(inputPath, outputPath);
 	    	start_ms = System.currentTimeMillis() - start_ms;
 	    	System.out.println("use time " + start_ms);
-	    	
+	    	System.exit(1);
 	    	RemoteIterator<LocatedFileStatus> outputs  =  fs.listFiles(outputPath, true);
 			while(outputs.hasNext()){
 				LocatedFileStatus fstatus = outputs.next();
